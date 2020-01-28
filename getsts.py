@@ -39,6 +39,7 @@ def get(event, context):
 
 
 if __name__ == "__main__":
-    context = Context(os.environ.get("AWS_ACCOUNT", "MISSING_AWS_ACCOUNT"))
+    aws_account = boto3.client('sts').get_caller_identity().get('Account')
+    context = Context(aws_account)
     res = get({}, context)
     pprint(json.loads(res["body"])["res"])

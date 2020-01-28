@@ -1,0 +1,4 @@
+awscli==1.17.9
+black==19.10b0
+docutils==0.15.2
+flake8==3.7.9

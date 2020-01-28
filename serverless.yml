@@ -1,0 +1,42 @@
+service: multipart-upload-sts
+# app and org for use with dashboard.serverless.com
+app: getsts
+org: vstudios
+
+provider:
+  name: aws
+  runtime: python3.8
+  logRetentionInDays: 30        # dont create infinite logs as they cost money
+
+# This did NOT add the role to the Lambda execution role :-(
+# iamRoleStatements:
+#   - Effect: "Allow"
+#     Action:
+#       - "sts:AssumeRole"
+#     Resource: "arn:aws:iam::MYAWSID:role/cshenton-multipart-upload-sts"               # dont think this is right/useful
+
+
+package:
+ exclude:
+   - package-lock.json
+   - node_modules/**
+
+functions:
+  GetSts:
+    handler: getsts.get
+    events:
+      - http:
+          path: /
+          method: get
+
+# you can add CloudFormation resource templates here
+#resources:
+#  Resources:
+#    NewResource:
+#      Type: AWS::S3::Bucket
+#      Properties:
+#        BucketName: my-new-bucket
+#  Outputs:
+#     NewOutput:
+#       Description: "Description for the output"
+#       Value: "Some output value"

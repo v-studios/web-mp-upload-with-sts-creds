@@ -70,14 +70,6 @@ Code, since the Lambda Execution Role's Trust has to specify the
 Lambda ARN, and it seems we have to spec the execution role in the
 Lambda definition -- circular dependency. More later.
 
-TODO
-====
-
-Our lambda now can assume the role and emit creds, but we'll need some
-code to take those creds and try to do a simple upload then a
-multipart upload.
-
-
 Hacking
 =======
 
@@ -113,8 +105,30 @@ or if we have to creaete a distinct session first::
                     aws_session_token=session_token)
   s3client = session.client('s3')
 
- This new client should -- if the role has the correct permissions --
- allow our CLI script to upload to S3.
+To prevent anyone on the interwebs from accessing the GetSts and
+getting creds which would allow them to assume a role and write to my
+S3 (or other resources defined on the Role), we will require an API
+key.  In the `serverless.yml` we make the GET private, define a couple
+API keys, and say we'll pass these in the HEADER. When we deploy,
+CloudFormation tells us our key values, then we can pass them in our
+"curl" request:
+
+  curl -H "x-api-key: API_KEY_FROM_SLS_DEPLOY" https://MY_ENDPOINT.execute-api.us-east-1.amazonaws.com/dev/
+
+If we don't pass a valid key, we get an HTTP 403 with response::
+
+  {"message": "Forbidden"}
+
+
+TODO
+====
+
+Our lambda now can assume the role and emit creds, but we'll need some
+code to take those creds and try to do a simple upload then a
+multipart upload.
+
+This new client should -- if the role has the correct permissions --
+allow our CLI script to upload to S3.
 
 Once that works, we should be able to use the same technique in a
 JavaScript Web front end.
@@ -126,3 +140,4 @@ supplying a list of all the parts' ETags. Each of the uploads must
 have a checksum computed on it, and this is a pain if you don't have a
 library to do the work for you like `EvaporateJS
 <https://github.com/TTLabs/EvaporateJS>`_.
+

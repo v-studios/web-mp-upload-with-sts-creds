@@ -41,19 +41,17 @@ resources:
      Properties:
        Description: Let lambda get STS creds which allow S3 multipart uplaods
        RoleName: lambda-multipart-upload-sts
-       # Set the Trust Relationship, allowing the lambda to assume this role
+       # Set the Role's Trust Relationship
        AssumeRolePolicyDocument:
          Version: "2012-10-17"
          Statement:
+           # Allow the Lambda's Execution Role to assume this role
            - Effect: Allow
              Action: sts:AssumeRole
              Principal:
-               Service: lambda.amazonaws.com
-           - Effect: Allow
-             Action: sts:AssumeRole
-             Principal:
-               # Can I just get the Arn of IamRoleLambdaExecution
-               AWS: arn:aws:iam::#{AWS::AccountId}:role/${self:service}-${self:provider.stage}-#{AWS::Region}-lambdaRole
+               AWS:
+                 Fn::GetAtt: [IamRoleLambdaExecution, Arn]
+           # Allow my AWS_PROFILE user to invoke it from the CLI for testing
            - Effect: Allow
              Action: sts:AssumeRole
              Principal:

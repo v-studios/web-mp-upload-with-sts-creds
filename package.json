@@ -1,0 +1,29 @@
+{
+  "name": "web-mp-upload-with-sts-creds",
+  "version": "0.1.0",
+  "description": "Web multipart upload using STS creds from Lambda",
+  "main": "index.js",
+  "dependencies": {
+    "serverless": "^1.61.3",
+    "serverless-pseudo-parameters": "^2.5.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/v-studios/web-mp-upload-with-sts-creds.git"
+  },
+  "keywords": [
+    "serverless",
+    "web",
+    "s3"
+  ],
+  "author": "chris@v-studios.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/v-studios/web-mp-upload-with-sts-creds/issues"
+  },
+  "homepage": "https://github.com/v-studios/web-mp-upload-with-sts-creds#readme"
+}

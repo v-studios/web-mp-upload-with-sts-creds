@@ -4,33 +4,51 @@
 
 We have a S3-resident Web UI that talks to a backend API. Users who
 are authorize by the app need to be able to upload to S3. For files
-under 5GB we can use presigned-URLs which include temporary
-credentials.
+under 5GB we use API-generated presigned-URLs which include temporary
+credentials, easy.
 
-But for large files like video, we must use S3 multipart upload. The
-client will need some credentials to be permitted to do the upload.
+But for files larger than 5GB like video, we must use S3 multipart
+upload. The web client will need some credentials to be permitted to do
+the upload.
 
-We hope to have the authenticated web client request temporary STS
-credentials from the API, and use those when making the multipart
-upload.
+Our web client authenticates to our API and uses JWTs in maintain
+session. It should request temporary STS credentials from the API, and
+use those when doing the multipart upload.
 
-We create an IAM Role which we will want the client to "assume", and
-attach a policy statement which gives it the permissions to do the
-multipart upload:
+The Serverless Framework created a Lambda Execution Role
+`role/multipart-upload-sts-dev-us-east-1-lambdaRole` which allows
+logging to CloudWatch, all standard stuff, and built-in to
+Serverless::
 
-* s3:GetObject
-* s3:ListMultpartUploadParts
-* s3:PutObject
-* s3:AbortMultipartUpload
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:CreateLogGroup"
+            ],
+            "Resource": [
+                "arn:aws:logs:us-east-1:AWS_ACCT:log-group:/aws/lambda/multipart-upload-sts-dev*:*"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "logs:PutLogEvents"
+            ],
+            "Resource": [
+                "arn:aws:logs:us-east-1:AWS_ACCT:log-group:/aws/lambda/multipart-upload-sts-dev*:*:*"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+  }
 
-(insert policy here when we figure it out)
-
-I had to Edit Trust Relationship on the Role I created to allow the
-Lambda execution role (multipart-upload-sts-dev-us-east-1-lambdaRole)
-Trust Relationships to assume the new Role I create which allows S3
-operations.  The auto-generated part is the first statement, I added
-the second which allowed the lambda, and the third which allowed me to
-run it from CLI::
+We have to ensure the Lambda Execution Role also has a Trust
+Relationship allowing Lambda to do the AssumeRole (TODO is this done
+automatically by Serverless, and not something we need to worry about
+at all?)::
 
   {
     "Version": "2012-10-17",
@@ -41,46 +59,81 @@ run it from CLI::
           "Service": "lambda.amazonaws.com"
         },
         "Action": "sts:AssumeRole"
-      },
-      {
-        "Effect": "Allow",
-        "Principal": {
-          "AWS": "arn:aws:iam::AWS_ACCOUNT:role/multipart-upload-sts-dev-us-east-1-lambdaRole"
-        },
-        "Action": "sts:AssumeRole"
-      },
-      {
-        "Effect": "Allow",
-        "Principal": {
-          "AWS": "arn:aws:iam::AWS_ACCOUNT:user/chris"
-        },
-        "Action": "sts:AssumeRole"
       }
     ]
   }
 
+Now we create an IAM Role that we will want to get STS creds for, with
+the permissions needed for the S3 multipart upload; we should be able
+to do this in `serverless.yml` with `Resources`. Our role is
+`role/cshenton-multipart-upload-sts` with Permissions::
 
-The Trust Relationships are distinct from the Permissions Policies, which are
-needed for the assumed role to be able to do stuff to S3 that I want,
-multipart upload.
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Sid": "MultipartUploadToSpecificS3Bucket",
+              "Effect": "Allow",
+              "Action": [
+                  "s3:PutObject",
+                  "s3:GetObject",
+                  "s3:AbortMultipartUpload",
+                  "s3:ListMultipartUploadParts"
+              ],
+              "Resource": "arn:aws:s3:::cshenton-multipart-upload-sts-test/*"
+          },
+          {
+              "Sid": "AssumeRoleSTS",
+              "Effect": "Allow",
+              "Action": "sts:AssumeRole",
+              "Resource": "*"
+          }
+      ]
+  }  
+
+TODO is the second set with AssumeRole needed?
+
+We also have to add to this role a Trust Relationship which allows our
+Lambda to assume it. Here, the first line (TODO is this needed?) was
+added by Serverless (?) and I've added one with our Lambda Role's ARN,
+and also for my AWS user so I can invoke `getsts.py` from the CLI::
+
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Sid": "MultipartUploadToSpecificS3Bucket",
+              "Effect": "Allow",
+              "Action": [
+                  "s3:PutObject",
+                  "s3:GetObject",
+                  "s3:AbortMultipartUpload",
+                  "s3:ListMultipartUploadParts"
+              ],
+              "Resource": "arn:aws:s3:::cshenton-multipart-upload-sts-test/*"
+          },
+          {
+              "Sid": "AssumeRoleSTS",
+              "Effect": "Allow",
+              "Action": "sts:AssumeRole",
+              "Resource": "*"
+          }
+      ]
+  }  
 
 
-I'm not sure how we're going to define these with Infrastructure As
-Code, since the Lambda Execution Role's Trust has to specify the
-Lambda ARN, and it seems we have to spec the execution role in the
-Lambda definition -- circular dependency. More later.
+Lambda to get and return STS credentials: getsts.py
+===================================================
 
-Hacking
-=======
+The `getsts.py` code which the Lambda uses does an `assume_role` with
+our Role's ARN::
 
-You can use this from the CLI and it will return the creds it got from
-the `asseume_role`. It looks for a role based on your AWS Account
-number and you'll have to change the name to match the one you
-created.  You can also find your Account number with AWS CLI::
+  ROLE_ARN = "arn:aws:iam::%s:role/cshenton-multipart-upload-sts"
 
-  aws sts get-caller-identity --output text --query 'Account'
-
-When you run the CLI, it emits the creds it got::
+You can run this from the CLI (after setting your AWS_PROFILE) and it
+will return the creds it got from the `asseume_role`. It looks for a
+role based on your AWS Account number and you'll have to change the
+name to match the one you created.  It emits the creds it got::
 
   {'AssumedRoleUser':
     {'Arn': 'arn:aws:sts::AWS_ACCOUNT:assumed-role/cshenton-multipart-upload-sts/cshenton-multipart-upload-sts-session',
@@ -89,21 +142,6 @@ When you run the CLI, it emits the creds it got::
                    'Expiration': '2020-01-28T22:42:22+00:00',
                    'SecretAccessKey': 'SECRETVALUE',
                    'SessionToken': 'ALONGSESSIONTOKEN'}}
-
-We should be able to quickly test with a CLI script that gets a Boto
-session based on the creds returned from the Lambda, something like::
-
-  s3_client = boto3.client("s3",
-                           aws_access_key_id=access_key_id,
-                           aws_secret_access_key=secret_access_key,
-                           aws_session_token=session_token)
-
-or if we have to creaete a distinct session first::
-
-  session = Session(aws_access_key_id=access_key_id,
-                    aws_secret_access_key=secret_access_key,
-                    aws_session_token=session_token)
-  s3client = session.client('s3')
 
 To prevent anyone on the interwebs from accessing the GetSts and
 getting creds which would allow them to assume a role and write to my
@@ -120,24 +158,63 @@ If we don't pass a valid key, we get an HTTP 403 with response::
   {"message": "Forbidden"}
 
 
+Using the STS credentials to upload: upload.py
+==============================================
+
+We can quickly test with a CLI script that uses the STS creds from the
+environment to create a Boto session with access to the S3 bucket::
+
+  s3r = boto3.resource('s3',
+                       aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
+                       aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
+                       aws_session_token=os.environ['AWS_SESSION_TOKEN'],
+  )
+
+Then we can uplaod a file to our specific bucket, and no other::
+
+  res = s3r.Bucket(BUCKET).upload_file(FILE, os.path.basename(FILE) + datetime.now().isoformat())
+
+
+
 TODO
 ====
 
-Our lambda now can assume the role and emit creds, but we'll need some
-code to take those creds and try to do a simple upload then a
-multipart upload.
+CLI with Multipart Upload
+-------------------------
 
-This new client should -- if the role has the correct permissions --
-allow our CLI script to upload to S3.
+Replace the simple S3 upload with a boto3 multipart upload with our STS creds.
 
-Once that works, we should be able to use the same technique in a
-JavaScript Web front end.
+WebUI with Multipart Upload
+---------------------------
 
-Then we can go for the gold, the multipart upload.  This is more
-complicated because you have to initiate the upload, then uplod many
-parts and track the returned ETags, and finally finish the upload by
-supplying a list of all the parts' ETags. Each of the uploads must
-have a checksum computed on it, and this is a pain if you don't have a
-library to do the work for you like `EvaporateJS
+Make a WebUI using a JS client like EvaporateJS and our STS creds.
+
+This is more complicated because you have to initiate the upload, then
+uplod many parts and track the returned ETags, and finally finish the
+upload by supplying a list of all the parts' ETags. Each of the
+uploads must have a checksum computed on it, and this is a pain if you
+don't have a library to do the work for you like `EvaporateJS
 <https://github.com/TTLabs/EvaporateJS>`_.
 
+We may also need to calculate AWS V4 crypto signatures, which we could
+implement as a Lambda.
+
+Infrastructures as Code
+-----------------------
+
+I'm not sure how we're going to define these with Infrastructure As
+Code, since the Lambda Execution Role's Trust has to specify the
+Lambda ARN, and it seems we have to spec the execution role in the
+Lambda definition -- circular dependency. More later.
+
+Security Concerns
+-----------------
+
+A policy specifying write access to `bucketname/*` is too broad, it
+would allow anyone with the creds to write anywhere in our bucket,
+perhaps overwriting other users' uploads. The `docs suggest it may be
+possible to submit a inline "session policy"
+<https://docs.aws.amazon.com/cli/latest/reference/sts/assume-role.html>`_. If
+so, we could at runtime return a restricted S3 location like
+`bucketname/upload/USERNAME/FILENAME` to limit where they can write,
+similar to S3 presigned URLs do.

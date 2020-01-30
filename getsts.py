@@ -3,12 +3,12 @@
 
 import datetime
 import json
-import os
 from pprint import pprint
 
 import boto3
 
-ROLE_ARN = "arn:aws:iam::%s:role/cshenton-multipart-upload-sts"
+# From Serverless Resource fails
+ROLE_ARN = "arn:aws:iam::%s:role/lambda-multipart-upload-sts"
 
 
 class Encoder(json.JSONEncoder):
@@ -25,21 +25,22 @@ class Context:
 def get(event, context):
     """Lambda entrypoint for GET /."""
     aws_account = context.invoked_function_arn.split(":")[4]
-    print(aws_account)
-    creds = boto3.client("sts").assume_role(
+    res = boto3.client("sts").assume_role(
         RoleArn=ROLE_ARN % aws_account,
         RoleSessionName="cshenton-multipart-upload-sts-session",
         # RegionName
-        # DurationSeconds
+        # DurationSeconds, default is 60 minutes, limits 15m-12h
     )
+    creds = res['Credentials']
+    user = res['AssumedRoleUser']
     return {
         "statusCode": 200,
-        "body": json.dumps({"res": creds}, cls=Encoder, indent=2),
+        "body": json.dumps({"creds": creds, "user": user}, cls=Encoder, indent=2),
     }
 
 
 if __name__ == "__main__":
     aws_account = boto3.client('sts').get_caller_identity().get('Account')
     context = Context(aws_account)
-    res = get({}, context)
-    pprint(json.loads(res["body"])["res"])
+    creds_user = get({}, context)
+    pprint(json.loads(creds_user['body']))

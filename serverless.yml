@@ -3,6 +3,10 @@ service: multipart-upload-sts
 app: getsts
 org: vstudios
 
+
+plugins:
+  - serverless-pseudo-parameters
+
 provider:
   name: aws
   runtime: python3.8
@@ -13,18 +17,12 @@ provider:
   apiGateway:
     apiKeySourceType: HEADER      # not AUTHORIZER
 
-# This did NOT add the role to the Lambda execution role :-(
-# iamRoleStatements:
-#   - Effect: "Allow"
-#     Action:
-#       - "sts:AssumeRole"
-#     Resource: "arn:aws:iam::MYAWSID:role/cshenton-multipart-upload-sts"               # dont think this is right/useful
-
 
 package:
  exclude:
    - package-lock.json
    - node_modules/**
+
 
 functions:
   GetSts:
@@ -33,17 +31,50 @@ functions:
       - http:
           path: /
           method: get
-          private: true # Requires clients to add API keys values in the `x-api-key` header of their request
+          private: true # clients must add "x-api-key: APIKEYVAL" to request headers
 
 
-
-# you can add CloudFormation resource templates here
-#resources:
-#  Resources:
-#    NewResource:
-#      Type: AWS::S3::Bucket
-#      Properties:
-#        BucketName: my-new-bucket
+resources:
+ Resources:
+   MultipartUploadRole:
+     Type: AWS::IAM::Role
+     Properties:
+       Description: Let lambda get STS creds which allow S3 multipart uplaods
+       RoleName: lambda-multipart-upload-sts
+       # Set the Trust Relationship, allowing the lambda to assume this role
+       AssumeRolePolicyDocument:
+         Version: "2012-10-17"
+         Statement:
+           - Effect: Allow
+             Action: sts:AssumeRole
+             Principal:
+               Service: lambda.amazonaws.com
+           - Effect: Allow
+             Action: sts:AssumeRole
+             Principal:
+               # Can I just get the Arn of IamRoleLambdaExecution
+               AWS: arn:aws:iam::#{AWS::AccountId}:role/${self:service}-${self:provider.stage}-#{AWS::Region}-lambdaRole
+           - Effect: Allow
+             Action: sts:AssumeRole
+             Principal:
+               AWS: arn:aws:iam::#{AWS::AccountId}:user/chris
+       # Allow (multipart) uploads to S3
+       Policies:
+         - PolicyName: S3-multipart-uploads
+           PolicyDocument:
+             Version: "2012-10-17"
+             Statement:
+               - Effect: Allow
+                 Action: sts:AssumeRole
+                 Resource: "*"
+               - Effect: Allow
+                 Action:
+                   - s3:PutObject
+                   - s3:GetObject
+                   - s3:AbortMultipartUpload
+                   - s3:ListMultipartUploadParts
+                 Resource: "arn:aws:s3:::cshenton-multipart-upload-sts-test/*"
+  
 #  Outputs:
 #     NewOutput:
 #       Description: "Description for the output"

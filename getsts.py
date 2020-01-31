@@ -42,5 +42,12 @@ def get(event, context):
 if __name__ == "__main__":
     aws_account = boto3.client('sts').get_caller_identity().get('Account')
     context = Context(aws_account)
-    creds_user = get({}, context)
-    pprint(json.loads(creds_user['body']))
+    creds_user = json.loads(get({}, context)['body'])
+    creds = creds_user['creds']
+    user = creds_user['user']
+    print(f"user={user}")
+    print(f"Use like:")
+    print(f"  AWS_ACCESS_KEY_ID={creds['AccessKeyId']}")
+    print(f"  AWS_SECRET_ACCESS_KEY={creds['SecretAccessKey']}")
+    print(f"  AWS_SESSION_TOKEN={creds['SessionToken']}")
+    print(f"  ./upload.py")

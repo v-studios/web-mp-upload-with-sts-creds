@@ -66,14 +66,12 @@ resources:
                  Action: sts:AssumeRole
                  Resource: "*"
                - Effect: Allow
+                 # We only need s3:PutObject to upload-only, maybe the others for Abort?
+                 # https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html
                  Action:
                    - s3:PutObject
-                   - s3:GetObject
-                   - s3:AbortMultipartUpload
-                   - s3:ListMultipartUploadParts
+                   # - s3:GetObject
+                   # - s3:AbortMultipartUpload
+                   # - s3:ListBucketMultipartUploadParts
+                   # - s3:ListMultipartUploadParts
                  Resource: "arn:aws:s3:::cshenton-multipart-upload-sts-test/*"
-  
-#  Outputs:
-#     NewOutput:
-#       Description: "Description for the output"
-#       Value: "Some output value"

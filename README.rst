@@ -89,7 +89,7 @@ to do this in `serverless.yml` with `Resources`. Our role is
               "Resource": "*"
           }
       ]
-  }  
+  }
 
 TODO is the second set with AssumeRole needed?
 
@@ -110,7 +110,7 @@ and also for my AWS user so I can invoke `getsts.py` from the CLI::
                   "s3:AbortMultipartUpload",
                   "s3:ListMultipartUploadParts"
               ],
-              "Resource": "arn:aws:s3:::cshenton-multipart-upload-sts-test/*"
+              "Resource": "arn:aws:s3:::cshenton-multipart-upload-sts-test/\*"
           },
           {
               "Sid": "AssumeRoleSTS",
@@ -119,29 +119,43 @@ and also for my AWS user so I can invoke `getsts.py` from the CLI::
               "Resource": "*"
           }
       ]
-  }  
+  }
 
 
 Lambda to get and return STS credentials: getsts.py
 ===================================================
 
 The `getsts.py` code which the Lambda uses does an `assume_role` with
-our Role's ARN::
+our ROLE_ARN of the role we created in serverless.yml.
 
-  ROLE_ARN = "arn:aws:iam::%s:role/cshenton-multipart-upload-sts"
+You can run this from the CLI (after setting your AWS_PROFILE)::
 
-You can run this from the CLI (after setting your AWS_PROFILE) and it
-will return the creds it got from the `asseume_role`. It looks for a
-role based on your AWS Account number and you'll have to change the
-name to match the one you created.  It emits the creds it got::
+  ./getsts.py
+
+It will return the creds it got from the `asseume_role`. It looks for
+a role based on your AWS Account number and you'll have to change the
+name to match the one you created. It will return results, with
+a cut-n-paste-able command like::
+
+  user={'AssumedRoleId': 'ABCDEFGHIJK:cshenton-multipart-upload-sts-session',
+        'Arn': 'arn:aws:sts::AWS_ACCOUNT:assumed-role/lambda-multipart-upload-sts/cshenton-multipart-upload-sts-session'}
+  Use like:
+      AWS_ACCESS_KEY_ID=ABCDEFGHIJK \
+      AWS_SECRET_ACCESS_KEY=somekey \
+      AWS_SESSION_TOKEN=somelongtoken \
+      ./upload.py
+
+
+
+The creds it got should look like::
 
   {'AssumedRoleUser':
     {'Arn': 'arn:aws:sts::AWS_ACCOUNT:assumed-role/cshenton-multipart-upload-sts/cshenton-multipart-upload-sts-session',
      'AssumedRoleId': 'AROAVFNXBLR7A5554DJFR:cshenton-multipart-upload-sts-session'},
-   'Credentials': {'AccessKeyId': 'KEYVALUE',
-                   'Expiration': '2020-01-28T22:42:22+00:00',
-                   'SecretAccessKey': 'SECRETVALUE',
-                   'SessionToken': 'ALONGSESSIONTOKEN'}}
+     'Credentials': {'AccessKeyId': 'KEYVALUE',
+                     'Expiration': '2020-01-28T22:42:22+00:00',
+                     'SecretAccessKey': 'SECRETVALUE',
+                     'SessionToken': 'ALONGSESSIONTOKEN'}}
 
 To prevent anyone on the interwebs from accessing the GetSts and
 getting creds which would allow them to assume a role and write to my
@@ -151,7 +165,7 @@ API keys, and say we'll pass these in the HEADER. When we deploy,
 CloudFormation tells us our key values, then we can pass them in our
 "curl" request:
 
-  curl -H "x-api-key: API_KEY_FROM_SLS_DEPLOY" https://MY_ENDPOINT.execute-api.us-east-1.amazonaws.com/dev/
+  curl -H "x-api-key: FROM_SLS_DEPLOY" https://MY_ENDPOINT.execute-api.us-east-1.amazonaws.com/dev/
 
 If we don't pass a valid key, we get an HTTP 403 with response::
 

@@ -1,4 +1,4 @@
-service: multipart-upload-sts
+service: multipart-upload-sts   # on WSO wp-dev account
 # app and org for use with dashboard.serverless.com
 app: getsts
 org: vstudios
@@ -27,6 +27,8 @@ package:
 functions:
   GetSts:
     handler: getsts.get
+    environment:
+      ROLE_ARN: !GetAtt MultipartUploadRole.Arn
     events:
       - http:
           path: /

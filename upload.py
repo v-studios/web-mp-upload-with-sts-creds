@@ -19,12 +19,6 @@ S3R = boto3.resource(
 )
 
 
-def show_bytes(count):
-    # This just spews too much for long files
-    # print(count)
-    pass
-
-
 def upload(path, multipart=False):
     """Use TransferManager for MP upload if size > threhold or > 5GB.
 
@@ -37,13 +31,14 @@ def upload(path, multipart=False):
     config = TransferConfig(multipart_threshold=threshold)
     S3R.Bucket(BUCKET).upload_file(path,
                                    datetime.now().isoformat() + "_" + os.path.basename(path),
-                                   Callback=show_bytes,
                                    Config=config)
     print("Uploaded OK")
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)  # use DEBUG to see MultipartUpload messages
+    for noise in ('boto3', 'botocore', 'urllib3'):
+        logging.getLogger(noise).setLevel(logging.WARNING)
     path = sys.argv[0]
     if len(sys.argv) > 1:
         path = sys.argv[1]

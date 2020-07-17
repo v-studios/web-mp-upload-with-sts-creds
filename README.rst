@@ -29,7 +29,7 @@ Serverless::
                 "logs:CreateLogGroup"
             ],
             "Resource": [
-                "arn:aws:logs:us-east-1:AWS_ACCT:log-group:/aws/lambda/multipart-upload-sts-dev*:*"
+                "arn:aws:logs:us-east-1:AWS_ACCT:log-group:/aws/lambda/multipart-upload-sts-dev\*:\*"
             ],
             "Effect": "Allow"
         },
@@ -38,7 +38,7 @@ Serverless::
                 "logs:PutLogEvents"
             ],
             "Resource": [
-                "arn:aws:logs:us-east-1:AWS_ACCT:log-group:/aws/lambda/multipart-upload-sts-dev*:*:*"
+                "arn:aws:logs:us-east-1:AWS_ACCT:log-group:/aws/lambda/multipart-upload-sts-dev\*:\*:\*"
             ],
             "Effect": "Allow"
         }
@@ -80,13 +80,13 @@ to do this in `serverless.yml` with `Resources`. Our role is
                   "s3:AbortMultipartUpload",
                   "s3:ListMultipartUploadParts"
               ],
-              "Resource": "arn:aws:s3:::cshenton-multipart-upload-sts-test/*"
+              "Resource": "arn:aws:s3:::cshenton-multipart-upload-sts-test/\*"
           },
           {
               "Sid": "AssumeRoleSTS",
               "Effect": "Allow",
               "Action": "sts:AssumeRole",
-              "Resource": "*"
+              "Resource": "\*"
           }
       ]
   }
@@ -116,7 +116,7 @@ and also for my AWS user so I can invoke `getsts.py` from the CLI::
               "Sid": "AssumeRoleSTS",
               "Effect": "Allow",
               "Action": "sts:AssumeRole",
-              "Resource": "*"
+              "Resource": "\*"
           }
       ]
   }
@@ -132,10 +132,8 @@ You can run this from the CLI (after setting your AWS_PROFILE)::
 
   ./getsts.py
 
-It will return the creds it got from the `asseume_role`. It looks for
-a role based on your AWS Account number and you'll have to change the
-name to match the one you created. It will return results, with
-a cut-n-paste-able command like::
+It will return the creds it got from the `assume_role`. It will return
+results, with a cut-n-paste-able command like::
 
   user={'AssumedRoleId': 'ABCDEFGHIJK:cshenton-multipart-upload-sts-session',
         'Arn': 'arn:aws:sts::AWS_ACCOUNT:assumed-role/lambda-multipart-upload-sts/cshenton-multipart-upload-sts-session'}
@@ -145,18 +143,6 @@ a cut-n-paste-able command like::
       AWS_SESSION_TOKEN=somelongtoken \
       ./upload.py
 
-
-
-The creds it got should look like::
-
-  {'AssumedRoleUser':
-    {'Arn': 'arn:aws:sts::AWS_ACCOUNT:assumed-role/cshenton-multipart-upload-sts/cshenton-multipart-upload-sts-session',
-     'AssumedRoleId': 'AROAVFNXBLR7A5554DJFR:cshenton-multipart-upload-sts-session'},
-     'Credentials': {'AccessKeyId': 'KEYVALUE',
-                     'Expiration': '2020-01-28T22:42:22+00:00',
-                     'SecretAccessKey': 'SECRETVALUE',
-                     'SessionToken': 'ALONGSESSIONTOKEN'}}
-
 To prevent anyone on the interwebs from accessing the GetSts and
 getting creds which would allow them to assume a role and write to my
 S3 (or other resources defined on the Role), we will require an API
@@ -165,7 +151,7 @@ API keys, and say we'll pass these in the HEADER. When we deploy,
 CloudFormation tells us our key values, then we can pass them in our
 "curl" request:
 
-  curl -H "x-api-key: FROM_SLS_DEPLOY" https://MY_ENDPOINT.execute-api.us-east-1.amazonaws.com/dev/
+  curl -H "x-api-key: FROM_SLS_DEPLOY" https://ENDPOINT.execute-api.us-east-1.amazonaws.com/dev/
 
 If we don't pass a valid key, we get an HTTP 403 with response::
 
@@ -188,15 +174,23 @@ Then we can uplaod a file to our specific bucket, and no other::
 
   res = s3r.Bucket(BUCKET).upload_file(FILE, os.path.basename(FILE) + datetime.now().isoformat())
 
+The ``upload.py`` uses ``upload_file`` from ``boto3``, and we've
+forced it to use multipart in the code by setting a minimal
+threshhold::
 
+  config = TransferConfig(multipart_threshold=threshold)
+  S3R.Bucket(BUCKET).upload_file(path,
+                                 datetime.now().isoformat() + "_" + os.path.basename(path),
+                                 Config=config)
+
+The DEBUG logs confirm we've uploaded with multpart::
+
+  DEBUG:s3transfer.tasks:CompleteMultipartUploadTask(transfer_id=0,
+    {'bucket': 'BUCKETNAME', 'key': '2020-07-17T14:16:02.872690_upload.py', 'extra_args': {}})
+  done waiting for dependent futures
 
 TODO
 ====
-
-CLI with Multipart Upload
--------------------------
-
-Replace the simple S3 upload with a boto3 multipart upload with our STS creds.
 
 WebUI with Multipart Upload
 ---------------------------
@@ -213,6 +207,46 @@ don't have a library to do the work for you like `EvaporateJS
 We may also need to calculate AWS V4 crypto signatures, which we could
 implement as a Lambda.
 
+We'll use AngularEvaporate, which is a wrapper around AngularJS (not
+NG2+); it's what we use now for images.nasa.gov so it should be a good test.
+
+TODO: we are still going to need a cryptographic signer for each part,
+running in the cloud as an API.
+
+Why doesn't my CLI upload.py need me
+to specify a signer? It's calculating signatures behind the scenes::
+
+  DEBUG:botocore.auth:CanonicalRequest:
+  POST
+  /2020-07-17T14%3A55%3A31.005620_upload.py
+  uploads=
+  host:cshenton-multipart-upload-sts-test.s3.amazonaws.com
+  x-amz-content-sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  x-amz-date:20200717T185531Z
+  x-amz-security-token:...
+
+  host;x-amz-content-sha256;x-amz-date;x-amz-security-token
+  [e3... 64 hex chars]
+  DEBUG:botocore.auth:StringToSign:
+  AWS4-HMAC-SHA256
+  20200717T185531Z
+  20200717/us-east-1/s3/aws4_request
+  [00a5... 64 hex chard]
+  DEBUG:botocore.auth:Signature:
+  5d2d5c34c20bd0e4ddbf0f83780f4917c2ce414bdd75aa22c3db18a964e48e27
+
+AWS SDK for HTML+JS?
+--------------------
+
+AngularEvaporate hasn't been touched in 4 years or so.
+
+`EvaporateJS <https://github.com/TTLabs/EvaporateJS>`_ is mostly
+dormant for the past 3 years, but has some activity for README.md and
+Examples recently.
+
+Is there an AWS SDK for JavaScript we can use from our post AngularJS,
+now NG2+ front-end?
+
 Infrastructures as Code
 -----------------------
 
@@ -221,10 +255,12 @@ Code, since the Lambda Execution Role's Trust has to specify the
 Lambda ARN, and it seems we have to spec the execution role in the
 Lambda definition -- circular dependency. More later.
 
+I THINK THIS IS OK NOW.
+
 Security Concerns
 -----------------
 
-A policy specifying write access to `bucketname/*` is too broad, it
+A policy specifying write access to `bucketname/\*` is too broad, it
 would allow anyone with the creds to write anywhere in our bucket,
 perhaps overwriting other users' uploads. The `docs suggest it may be
 possible to submit a inline "session policy"

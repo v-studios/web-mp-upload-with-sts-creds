@@ -7,10 +7,11 @@ import os
 
 import boto3
 
-# From Serverless Resource fails WHY?? WHAT FAILURE??
-ROLE_ARN = "arn:aws:iam::%s:role/lambda-multipart-upload-sts"
-UPLOAD_ROLE_ARN = os.environ['UPLOAD_ROLE_ARN']
-UPLOAD_BUCKET = os.environ['UPLOAD_BUCKET']
+# ROLE_ARN = "arn:aws:iam::%s:role/lambda-multipart-upload-sts"
+ROLE_ARN = os.environ['ROLE_ARN']
+BUCKET_NAME = os.environ['BUCKET_NAME']
+BUCKET_ARN = os.environ['BUCKET_ARN']
+print(f'GLOBAL ROLE_ARN={ROLE_ARN} S3={BUCKET_NAME} S3ARN={BUCKET_ARN}')
 
 
 class Encoder(json.JSONEncoder):
@@ -24,48 +25,12 @@ class Context:
         self.invoked_function_arn = f"arn:aws:svc:reg:{aws_account}:res"
 
 
-def create_sts():
-    """Create STS with dynamic policy limiting to bucket and upload path.
-
-    We have to restrict to our request-specific path to prevent caller from
-    getting a generic write-anywyer policy.
-
-    Since our GET is currently not expecting a path param,
-    we'll simulate by requiring them to use /uploads/*
-
-    Later, we'll get the client's filename and MIME from the request, then
-    generate a policy that may restrict like:
-    /uploads/$username/$jobid/filename.sfx
-    """
-    policy = {"Version": "2012-10-17",
-              "Statement": [
-                  {"Sid": "Restrict to specific dir/file",
-                   "Effect": "Allow",
-                   "Action": "s3:*",
-                   "Resource": "*",
-                   },
-              ]}
-    sts_client = boto3.client('sts')
-    res = sts_client.assume_role(
-        # Should RoleArn already exist?
-        # Can we use S3-all-access as the base, then limit with our Policy?
-        RoleArn="arn:aws:iam::MYACCOUNT/role/cshenton-sts-dynamic",
-        RoleSessionName="cshenton AVAIL Upload dynamic session",
-        # The resulting session's permissions are the intersection of the
-        # role's identity-based policy and the session policies.
-        Policy=json.dumps(policy),
-        DurationSeconds=3600,
-    )
-    print(f"# assume_role res={res}")
-    return res
-
-
 def get(event, context):
-
     """Lambda entrypoint for GET /."""
+
     policy = {"Version": "2012-10-17",
               "Statement": [
-                  {"Sid": "Restrict to specific dir/file",
+                  {"Sid": "RestrictToSpecificDirOrFile",
                    "Effect": "Allow",
                    "Action": "s3:*",
                    "Resource": "*",
@@ -73,8 +38,9 @@ def get(event, context):
               ]}
     res = boto3.client("sts").assume_role(
         # TODO can the RoleArn be S3:AllowAllAccess?
-        RoleArn=UPLOAD_ROLE_ARN,  # role created in serverless
+        RoleArn=ROLE_ARN,  # role created in serverless
         RoleSessionName="cshenton-multipart-upload-sts-session",
+        Policy=json.dumps(policy),
         # WTF? DurationSeconds exceeds the MaxSessionDuration set for this role
         # DurationSeconds=4200,  # default is 60 minutes, limits 15m-12h
     )

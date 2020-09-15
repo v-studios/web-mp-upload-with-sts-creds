@@ -18,8 +18,12 @@ provider:
   apiGateway:
     apiKeySourceType: HEADER      # not AUTHORIZER
   environment:
-    UPLOAD_ROLE_ARN: '#{MultipartUploadRole.Arn}'
-    UPLOAD_BUCKET: '#{UploadBucket}'
+    ROLE_ARN: '#{MultipartUploadRole.Arn}'
+    BUCKET_NAME: '#{UploadBucket}'
+    BUCKET_ARN: '#{UploadBucket.Arn}'
+    # arn:aws:s3:::cshenton-multipart-upload-sts
+    BUCKET_REF: !Ref UploadBucket
+    ROLE_ATT: !GetAtt [MultipartUploadRole, Arn]
 
 package:
  exclude:

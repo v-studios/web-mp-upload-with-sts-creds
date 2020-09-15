@@ -4,10 +4,11 @@
   "description": "Web multipart upload using STS creds from Lambda",
   "main": "index.js",
   "dependencies": {
-    "serverless": "^1.61.3",
+    "serverless": "^2.0.0"
+  },
+  "devDependencies": {
     "serverless-pseudo-parameters": "^2.5.0"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

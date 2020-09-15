@@ -1,3 +1,6 @@
+/.python-version
+*~
+
 # Distribution / packaging
 .Python
 env/

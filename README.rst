@@ -89,7 +89,7 @@ to do this in `serverless.yml` with `Resources`. Our role is
               "Resource": "*"
           }
       ]
-  }  
+  }
 
 TODO is the second set with AssumeRole needed?
 
@@ -170,7 +170,7 @@ environment to create a Boto session with access to the S3 bucket::
                        aws_session_token=os.environ['AWS_SESSION_TOKEN'],
   )
 
-Then we can uplaod a file to our specific bucket, and no other::
+Then we can upload a file to our specific bucket, and no other::
 
   res = s3r.Bucket(BUCKET).upload_file(FILE, os.path.basename(FILE) + datetime.now().isoformat())
 
@@ -178,6 +178,30 @@ Then we can uplaod a file to our specific bucket, and no other::
 
 TODO
 ====
+
+STS for MP Upload with Restrictions
+-----------------------------------
+
+I think the STS solution will be easiest, since modern AWS SDK for JS
+supports MP uploads directly. The "trick" will be restricting the
+Role/Permissions attached to the Token so they can ONLY upload to the
+target URL, not everywhere in the S3 bucket
+
+We may have to give the Lambda privs to create new Roles on the fly,
+with a Policy that has the path restrictions we need, then build that
+into the STS token.
+
+Presigned URLs for Multipart Upload
+-----------------------------------
+
+A recent trawling found a couple good resources for using Presigned
+URLs for MP Upload. There's a `GitHub ticket #1603
+<https://github.com/aws/aws-sdk-js/issues/1603#issuecomment-441926007>`_
+for the ``aws-sdk-js`` that talks about diffenent way to do this.
+
+In the commnents, Preston posted a `link to FE and BE
+<https://github.com/prestonlimlianjie/aws-s3-multipart-presigned-upload>`_
+to do MP uploads where each part gets its own Presigned URL, rather than STS.
 
 CLI with Multipart Upload
 -------------------------
@@ -198,6 +222,9 @@ don't have a library to do the work for you like `EvaporateJS
 
 We may also need to calculate AWS V4 crypto signatures, which we could
 implement as a Lambda.
+
+2020-09-15 We should be able to do this now directly with the AWS SDK for Javascript.
+
 
 Infrastructures as Code
 -----------------------

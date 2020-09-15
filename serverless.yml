@@ -1,3 +1,4 @@
+# Do this in wp-dev since it's for AVAIL, S3 name must be unique
 service: multipart-upload-sts
 # app and org for use with dashboard.serverless.com
 app: getsts
@@ -36,6 +37,10 @@ functions:
 
 resources:
  Resources:
+   UploadBucket:
+     Type: AWS::S3::Bucket
+     Properties: 
+       BucketName: cshenton-multipart-upload-sts  # in westprime-commercial
    MultipartUploadRole:
      Type: AWS::IAM::Role
      Properties:
@@ -57,6 +62,7 @@ resources:
              Principal:
                AWS: arn:aws:iam::#{AWS::AccountId}:user/chris
        # Allow (multipart) uploads to S3
+       # TODO: how do we, at runtime, restrict the upload path?
        Policies:
          - PolicyName: S3-multipart-uploads
            PolicyDocument:
@@ -68,10 +74,12 @@ resources:
                - Effect: Allow
                  # We only need s3:PutObject to upload-only, maybe the others for Abort?
                  # https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html
+                 # https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
                  Action:
                    - s3:PutObject
                    # - s3:GetObject
                    # - s3:AbortMultipartUpload
                    # - s3:ListBucketMultipartUploadParts
                    # - s3:ListMultipartUploadParts
-                 Resource: "arn:aws:s3:::cshenton-multipart-upload-sts-test/*"
+                 # Want to add /* to this? 
+                 Resource: '#{UploadBucket.Arn}/*'

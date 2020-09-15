@@ -10,7 +10,7 @@ import boto3
 from boto3.s3.transfer import TransferConfig
 
 GB5 = 5 * 1024 ** 3
-BUCKET = "cshenton-multipart-upload-sts-test"
+BUCKET = "cshenton-multipart-upload-sts"  # in wp-dev; must match serverless.yml name
 S3R = boto3.resource(
     's3',
     aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],

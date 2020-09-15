@@ -22,6 +22,10 @@ class Context:
         self.invoked_function_arn = f"arn:aws:svc:reg:{aws_account}:res"
 
 
+# TODO: Add policy restricting to just the S3 target path
+# e.g., /uploads/username/jobid/...
+# we could test by getting the dest-filename from the request
+# then resturct to /uploads/dest-filename.suf
 def get(event, context):
     """Lambda entrypoint for GET /."""
     aws_account = context.invoked_function_arn.split(":")[4]
@@ -35,7 +39,11 @@ def get(event, context):
     user = res['AssumedRoleUser']
     return {
         "statusCode": 200,
-        "body": json.dumps({"creds": creds, "user": user}, cls=Encoder, indent=2),
+        "body": json.dumps({"creds": creds,
+                            "user": user,
+                            "envcmd": f"AWS_ACCESS_KEY_ID={creds['AccessKeyId']} AWS_SECRET_ACCESS_KEY={creds['SecretAccessKey']} AWS_SESSION_TOKEN={creds['SessionToken']} ./upload.py"},
+                           cls=Encoder,
+                           indent=2),
     }
 
 

@@ -30,7 +30,6 @@ package:
    - package-lock.json
    - node_modules/**
 
-
 functions:
   GetSts:
     handler: getsts.get
@@ -39,7 +38,6 @@ functions:
           path: /
           method: get
           private: true # clients must add "x-api-key: APIKEYVAL" to request headers
-
 
 resources:
  Resources:
@@ -68,9 +66,6 @@ resources:
              Principal:
                AWS: arn:aws:iam::#{AWS::AccountId}:user/chris
        # Allow (multipart) uploads to S3
-       # TODO: Can I use AmazonS3FullAccess for this?
-       # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html
-       # https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-attach-managed-policy/
        Policies:
          # We augment this with a dynamic policy to further restrict in the Lambda
          - PolicyName: S3-multipart-uploads

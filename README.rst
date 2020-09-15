@@ -179,12 +179,9 @@ Then we can upload a file to our specific bucket, and no other::
 TODO
 ====
 
-* Try to use AWS standard S3 all access instead of our custom Role
-
-  * There's an AmazonS3FullAccess *Policy* but not canned role
-    
+* Try to use AWS standard S3 all access instead of our custom Role: no Roles, only Policies, and ours if fine
 * get should take desired filename, then policy tailored to that
-* accept metadata (this be on the client, but figure out how)
+* accept metadata (this be on the client, but figure out how and demo)
 
 WebUI with Multipart Upload
 ---------------------------
@@ -206,4 +203,4 @@ than STS.
 Too Many Roles, Who Created?
 ----------------------------
 
-Can we remove some roles?
+Can we remove some roles or policies on them?

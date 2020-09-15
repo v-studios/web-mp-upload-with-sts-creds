@@ -68,8 +68,11 @@ resources:
              Principal:
                AWS: arn:aws:iam::#{AWS::AccountId}:user/chris
        # Allow (multipart) uploads to S3
-       # TODO: how do we, at runtime, restrict the upload path?
+       # TODO: Can I use AmazonS3FullAccess for this?
+       # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html
+       # https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-attach-managed-policy/
        Policies:
+         # We augment this with a dynamic policy to further restrict in the Lambda
          - PolicyName: S3-multipart-uploads
            PolicyDocument:
              Version: "2012-10-17"
@@ -78,14 +81,7 @@ resources:
                  Action: sts:AssumeRole
                  Resource: "*"
                - Effect: Allow
-                 # We only need s3:PutObject to upload-only, maybe the others for Abort?
-                 # https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html
-                 # https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
                  Action:
-                   - s3:PutObject
-                   # - s3:GetObject
-                   # - s3:AbortMultipartUpload
-                   # - s3:ListBucketMultipartUploadParts
-                   # - s3:ListMultipartUploadParts
-                 # Want to add /* to this? 
+                   - s3:PutObject             # initiate, upload part, finish
+                   - s3:AbortMultipartUpload  # stop upload
                  Resource: '#{UploadBucket.Arn}/*'

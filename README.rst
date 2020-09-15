@@ -179,77 +179,31 @@ Then we can upload a file to our specific bucket, and no other::
 TODO
 ====
 
-STS for MP Upload with Restrictions
------------------------------------
+* Try to use AWS standard S3 all access instead of our custom Role
 
-I think the STS solution will be easiest, since modern AWS SDK for JS
-supports MP uploads directly. The "trick" will be restricting the
-Role/Permissions attached to the Token so they can ONLY upload to the
-target URL, not everywhere in the S3 bucket
-
-We may have to give the Lambda privs to create new Roles on the fly,
-with a Policy that has the path restrictions we need, then build that
-into the STS token.
-
-Presigned URLs for Multipart Upload
------------------------------------
-
-A recent trawling found a couple good resources for using Presigned
-URLs for MP Upload. There's a `GitHub ticket #1603
-<https://github.com/aws/aws-sdk-js/issues/1603#issuecomment-441926007>`_
-for the ``aws-sdk-js`` that talks about diffenent way to do this.
-
-In the commnents, Preston posted a `link to FE and BE
-<https://github.com/prestonlimlianjie/aws-s3-multipart-presigned-upload>`_
-to do MP uploads where each part gets its own Presigned URL, rather than STS.
-
-CLI with Multipart Upload
--------------------------
-
-Replace the simple S3 upload with a boto3 multipart upload with our STS creds.
+  * There's an AmazonS3FullAccess *Policy* but not canned role
+    
+* get should take desired filename, then policy tailored to that
+* accept metadata (this be on the client, but figure out how)
 
 WebUI with Multipart Upload
 ---------------------------
 
-Make a WebUI using a JS client like EvaporateJS and our STS creds.
-
-This is more complicated because you have to initiate the upload, then
-uplod many parts and track the returned ETags, and finally finish the
-upload by supplying a list of all the parts' ETags. Each of the
-uploads must have a checksum computed on it, and this is a pain if you
-don't have a library to do the work for you like `EvaporateJS
-<https://github.com/TTLabs/EvaporateJS>`_.
-
-We may also need to calculate AWS V4 crypto signatures, which we could
-implement as a Lambda.
+Make a WebUI using a JS client like NG or Vue and our STS creds.
 
 2020-09-15 We should be able to do this now directly with the AWS SDK for Javascript.
 
+See examples from using Presigned URLs for MP Upload, `GitHub ticket
+#1603
+<https://github.com/aws/aws-sdk-js/issues/1603#issuecomment-441926007>`_
+for the ``aws-sdk-js`` that talks about diffenent way to do this. In
+the commnents, Preston posted a `link to FE and BE
+<https://github.com/prestonlimlianjie/aws-s3-multipart-presigned-upload>`_
+to do MP uploads where each part gets its own Presigned URL, rather
+than STS.
 
-Infrastructures as Code
------------------------
-
-I'm not sure how we're going to define these with Infrastructure As
-Code, since the Lambda Execution Role's Trust has to specify the
-Lambda ARN, and it seems we have to spec the execution role in the
-Lambda definition -- circular dependency. More later.
-
-Security Concerns
------------------
-
-A policy specifying write access to `bucketname/*` is too broad, it
-would allow anyone with the creds to write anywhere in our bucket,
-perhaps overwriting other users' uploads. The `docs suggest it may be
-possible to submit a inline "session policy"
-<https://docs.aws.amazon.com/cli/latest/reference/sts/assume-role.html>`_. If
-so, we could at runtime return a restricted S3 location like
-`bucketname/upload/USERNAME/FILENAME` to limit where they can write,
-similar to S3 presigned URLs do.
 
 Too Many Roles, Who Created?
 ----------------------------
 
-In Console our stack creates
-* IamRoleCusomResourcesLambdaExecution: multiprt-upload-sts-dev-IamRoleCustomResourcesLam-F494D65621DH (AttachRolePolicy, apig:Get/Patch)
-* LamRoleLambdaExecution: multipart-upload-sts-dev-us-east-1-lambdaRole (createLogGroup/Stream)
-* MultipartUploadRole:	lambda-multipart-upload-sts (Policy=S3-multipart-uploads assumerole, Putobject ourS3.../*)
+Can we remove some roles?

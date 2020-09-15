@@ -7,11 +7,10 @@ import os
 
 import boto3
 
-# ROLE_ARN = "arn:aws:iam::%s:role/lambda-multipart-upload-sts"
 ROLE_ARN = os.environ['ROLE_ARN']
 BUCKET_NAME = os.environ['BUCKET_NAME']
 BUCKET_ARN = os.environ['BUCKET_ARN']
-print(f'GLOBAL ROLE_ARN={ROLE_ARN} S3={BUCKET_NAME} S3ARN={BUCKET_ARN}')
+# print(f'GLOBAL ROLE_ARN={ROLE_ARN} S3={BUCKET_NAME} S3ARN={BUCKET_ARN}')
 
 
 class Encoder(json.JSONEncoder):
@@ -32,7 +31,10 @@ def get(event, context):
               "Statement": [
                   {"Sid": "RestrictToSpecificBucketPrefix",
                    "Effect": "Allow",
-                   "Action": "s3:*",  # TODO PUT and whatever for cancel
+                   "Action": [
+                       "s3:PutObject",  # initiate, upload part, complete
+                       "s3:AbortMultipartUpload",  # only to stop
+                   ],
                    "Resource": f"{BUCKET_ARN}/uploads/*",
                    },
               ]}

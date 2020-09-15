@@ -35,8 +35,9 @@ def upload(path, multipart=False):
         threshold = 1           # so low it forces multipart
         print('Using multipart...')
     config = TransferConfig(multipart_threshold=threshold)
-    S3R.Bucket(BUCKET).upload_file(path,
-                                   datetime.now().isoformat() + "_" + os.path.basename(path),
+    # prefix key for our policy
+    S3R.Bucket(BUCKET).upload_file(Filename=path,
+                                   Key="uploads/" + datetime.now().isoformat() + "_" + os.path.basename(path),
                                    Callback=show_bytes,
                                    Config=config)
     print("Uploaded OK")

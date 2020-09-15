@@ -30,10 +30,10 @@ def get(event, context):
 
     policy = {"Version": "2012-10-17",
               "Statement": [
-                  {"Sid": "RestrictToSpecificDirOrFile",
+                  {"Sid": "RestrictToSpecificBucketPrefix",
                    "Effect": "Allow",
-                   "Action": "s3:*",
-                   "Resource": "*",
+                   "Action": "s3:*",  # TODO PUT and whatever for cancel
+                   "Resource": f"{BUCKET_ARN}/uploads/*",
                    },
               ]}
     res = boto3.client("sts").assume_role(

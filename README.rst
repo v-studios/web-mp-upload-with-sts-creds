@@ -245,3 +245,11 @@ possible to submit a inline "session policy"
 so, we could at runtime return a restricted S3 location like
 `bucketname/upload/USERNAME/FILENAME` to limit where they can write,
 similar to S3 presigned URLs do.
+
+Too Many Roles, Who Created?
+----------------------------
+
+In Console our stack creates
+* IamRoleCusomResourcesLambdaExecution: multiprt-upload-sts-dev-IamRoleCustomResourcesLam-F494D65621DH (AttachRolePolicy, apig:Get/Patch)
+* LamRoleLambdaExecution: multipart-upload-sts-dev-us-east-1-lambdaRole (createLogGroup/Stream)
+* MultipartUploadRole:	lambda-multipart-upload-sts (Policy=S3-multipart-uploads assumerole, Putobject ourS3.../*)

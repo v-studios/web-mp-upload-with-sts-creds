@@ -3,11 +3,10 @@
 
 import datetime
 import json
-from pprint import pprint
 
 import boto3
 
-# From Serverless Resource fails
+# From Serverless Resource fails WHY?? WHAT FAILURE??
 ROLE_ARN = "arn:aws:iam::%s:role/lambda-multipart-upload-sts"
 
 
@@ -22,28 +21,68 @@ class Context:
         self.invoked_function_arn = f"arn:aws:svc:reg:{aws_account}:res"
 
 
-# TODO: Add policy restricting to just the S3 target path
-# e.g., /uploads/username/jobid/...
-# we could test by getting the dest-filename from the request
-# then resturct to /uploads/dest-filename.suf
+def create_sts():
+    """Create STS with dynamic policy limiting to bucket and upload path.
+
+    We have to restrict to our request-specific path to prevent caller from
+    getting a generic write-anywyer policy.
+
+    Since our GET is currently not expecting a path param,
+    we'll simulate by requiring them to use /uploads/*
+
+    Later, we'll get the client's filename and MIME from the request, then
+    generate a policy that may restrict like:
+    /uploads/$username/$jobid/filename.sfx
+    """
+    policy = {"Version": "2012-10-17",
+              "Statement": [
+                  {"Sid": "Restrict to specific dir/file",
+                   "Effect": "Allow",
+                   "Action": "s3:*",
+                   "Resource": "*",
+                   },
+              ]}
+    sts_client = boto3.client('sts')
+    res = sts_client.assume_role(
+        # Should RoleArn already exist?
+        # Can we use S3-all-access as the base, then limit with our Policy?
+        RoleArn="arn:aws:iam::MYACCOUNT/role/cshenton-sts-dynamic",
+        RoleSessionName="cshenton AVAIL Upload dynamic session",
+        # The resulting session's permissions are the intersection of the
+        # role's identity-based policy and the session policies.
+        Policy=json.dumps(policy),
+        DurationSeconds=3600,
+    )
+    print(f"# assume_role res={res}")
+    return res
+
+
 def get(event, context):
+
     """Lambda entrypoint for GET /."""
     aws_account = context.invoked_function_arn.split(":")[4]
     res = boto3.client("sts").assume_role(
-        RoleArn=ROLE_ARN % aws_account,
+        # TODO can the RoleArn be S3:AllowAllAccess?
+        # Created 2020-01-29
+        # arn:aws:iam::355255540862:role/lambda-multipart-upload-sts
+        RoleArn=ROLE_ARN % aws_account,  # was this hand-created?
         RoleSessionName="cshenton-multipart-upload-sts-session",
-        # RegionName
-        # DurationSeconds, default is 60 minutes, limits 15m-12h
+        # WTF? DurationSeconds exceeds the MaxSessionDuration set for this role
+        # DurationSeconds=4200,  # default is 60 minutes, limits 15m-12h
     )
     creds = res['Credentials']
     user = res['AssumedRoleUser']
     return {
         "statusCode": 200,
-        "body": json.dumps({"creds": creds,
-                            "user": user,
-                            "envcmd": f"AWS_ACCESS_KEY_ID={creds['AccessKeyId']} AWS_SECRET_ACCESS_KEY={creds['SecretAccessKey']} AWS_SESSION_TOKEN={creds['SessionToken']} ./upload.py"},
-                           cls=Encoder,
-                           indent=2),
+        "body": json.dumps(
+            {"creds": creds,
+             "user": user,
+             "envcmd": (f"AWS_ACCESS_KEY_ID={creds['AccessKeyId']}"
+                        f" AWS_SECRET_ACCESS_KEY={creds['SecretAccessKey']}"
+                        f" AWS_SESSION_TOKEN={creds['SessionToken']}"
+                        f" ./upload.py")},
+            cls=Encoder,
+            indent=2),
     }
 
 

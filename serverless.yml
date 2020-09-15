@@ -17,7 +17,9 @@ provider:
     - ${self:provider.stage}-client2
   apiGateway:
     apiKeySourceType: HEADER      # not AUTHORIZER
-
+  environment:
+    UPLOAD_ROLE_ARN: '#{MultipartUploadRole.Arn}'
+    UPLOAD_BUCKET: '#{UploadBucket}'
 
 package:
  exclude:

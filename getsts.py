@@ -3,11 +3,14 @@
 
 import datetime
 import json
+import os
 
 import boto3
 
 # From Serverless Resource fails WHY?? WHAT FAILURE??
 ROLE_ARN = "arn:aws:iam::%s:role/lambda-multipart-upload-sts"
+UPLOAD_ROLE_ARN = os.environ['UPLOAD_ROLE_ARN']
+UPLOAD_BUCKET = os.environ['UPLOAD_BUCKET']
 
 
 class Encoder(json.JSONEncoder):
@@ -60,12 +63,17 @@ def create_sts():
 def get(event, context):
 
     """Lambda entrypoint for GET /."""
-    aws_account = context.invoked_function_arn.split(":")[4]
+    policy = {"Version": "2012-10-17",
+              "Statement": [
+                  {"Sid": "Restrict to specific dir/file",
+                   "Effect": "Allow",
+                   "Action": "s3:*",
+                   "Resource": "*",
+                   },
+              ]}
     res = boto3.client("sts").assume_role(
         # TODO can the RoleArn be S3:AllowAllAccess?
-        # Created 2020-01-29
-        # arn:aws:iam::355255540862:role/lambda-multipart-upload-sts
-        RoleArn=ROLE_ARN % aws_account,  # was this hand-created?
+        RoleArn=UPLOAD_ROLE_ARN,  # role created in serverless
         RoleSessionName="cshenton-multipart-upload-sts-session",
         # WTF? DurationSeconds exceeds the MaxSessionDuration set for this role
         # DurationSeconds=4200,  # default is 60 minutes, limits 15m-12h

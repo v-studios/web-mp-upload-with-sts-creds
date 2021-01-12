@@ -182,6 +182,8 @@ TODO
 * Try to use AWS standard S3 all access instead of our custom Role: no Roles, only Policies, and ours if fine
 * get should take desired filename, then policy tailored to that
 * accept metadata (this be on the client, but figure out how and demo)
+* figure out how to increase Duration to 12h, and what's limiting it now
+* make upload.py get creds itself, pass in API URL as env var
 
 WebUI with Multipart Upload
 ---------------------------

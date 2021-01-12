@@ -8,9 +8,8 @@ import os
 import boto3
 
 ROLE_ARN = os.environ['ROLE_ARN']
-BUCKET_NAME = os.environ['BUCKET_NAME']
 BUCKET_ARN = os.environ['BUCKET_ARN']
-# print(f'GLOBAL ROLE_ARN={ROLE_ARN} S3={BUCKET_NAME} S3ARN={BUCKET_ARN}')
+# print(f'GLOBAL ROLE_ARN={ROLE_ARN} S3ARN={BUCKET_ARN}')
 
 
 class Encoder(json.JSONEncoder):
@@ -39,7 +38,6 @@ def get(event, context):
                    },
               ]}
     res = boto3.client("sts").assume_role(
-        # TODO can the RoleArn be S3:AllowAllAccess?
         RoleArn=ROLE_ARN,  # role created in serverless
         RoleSessionName="cshenton-multipart-upload-sts-session",
         Policy=json.dumps(policy),

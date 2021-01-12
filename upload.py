@@ -12,10 +12,10 @@ from boto3.s3.transfer import TransferConfig
 GB5 = 5 * 1024 ** 3
 BUCKET = "cshenton-multipart-upload-sts"  # in wp-dev; must match serverless.yml name
 S3R = boto3.resource(
-    's3',
-    aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-    aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-    aws_session_token=os.environ['AWS_SESSION_TOKEN'],
+    "s3",
+    aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+    aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    aws_session_token=os.environ["AWS_SESSION_TOKEN"],
 )
 
 
@@ -32,19 +32,30 @@ def upload(path, multipart=False):
     """
     threshold = GB5
     if multipart:
-        threshold = 1           # so low it forces multipart
-        print('Using multipart...')
-    config = TransferConfig(multipart_threshold=threshold)
-    # prefix key for our policy
-    S3R.Bucket(BUCKET).upload_file(Filename=path,
-                                   Key="uploads/" + datetime.now().isoformat() + "_" + os.path.basename(path),
-                                   Callback=show_bytes,
-                                   Config=config)
+        threshold = 1  # so low it forces multipart
+        print("Using multipart...")
+    config = TransferConfig(
+        multipart_threshold=threshold,
+        max_concurrency=10,  # default
+        use_threads=True,  # required for concurrency
+        # multipart_chunksize=...,
+    )
+    # For a percent-upload output see
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/_modules/boto3/s3/transfer.html
+    # Using "uploads/" prefix key to conform our STS' policy
+    S3R.Bucket(BUCKET).upload_file(
+        Filename=path,
+        Key="uploads/" + datetime.now().isoformat() + "_" + os.path.basename(path),
+        Callback=show_bytes,
+        Config=config,
+    )
     print("Uploaded OK")
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)  # use DEBUG to see MultipartUpload messages
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG
+    )  # use DEBUG to see MultipartUpload messages
     path = sys.argv[0]
     if len(sys.argv) > 1:
         path = sys.argv[1]
